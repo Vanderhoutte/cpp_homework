@@ -6,5 +6,5 @@
 
 class Base_module
 {
-
+    
 };
