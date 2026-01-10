@@ -93,22 +93,31 @@ public:
     void clear_all_students();
     
     /**
-     * @brief 保存数据到文件
+     * @brief 保存数据到文件（包含成绩信息）
      * @param filename 文件名
      * @return bool 保存成功返回true，失败返回false
      * 
-     * 将学生数据保存为CSV格式文件，包含基本信息。
+     * 将学生数据和成绩信息保存为CSV格式文件。
      */
     bool save_to_file(const std::string& filename);
     
     /**
-     * @brief 从文件加载数据
+     * @brief 从文件加载数据（包含成绩信息）
      * @param filename 文件名
      * @return bool 加载成功返回true，失败返回false
      * 
-     * 从CSV格式文件加载学生数据，自动验证数据有效性。
+     * 从CSV格式文件加载学生数据和成绩信息，自动验证数据有效性。
      */
     bool load_from_file(const std::string& filename);
+    
+    /**
+     * @brief 保存数据到Excel格式文件（包含成绩信息）
+     * @param filename 文件名
+     * @return bool 保存成功返回true，失败返回false
+     * 
+     * 按照学号从小到大排序后保存为CSV格式（Excel兼容），包含成绩信息。
+     */
+    bool save_to_excel_file(const std::string& filename);
     
     /**
      * @brief 显示所有学生信息
@@ -139,15 +148,22 @@ public:
      * @brief 按学号排序学生列表
      */
     void sort_students_by_id();
+
+    /**
+     * @brief 设置学生成绩
+     * @param student_id 学生学号
+     * @param subject 科目名称
+     * @param score 成绩（0-100分）
+     * @return bool 设置成功返回true，失败返回false
+     */
+    bool set_student_score(const std::string& student_id, const std::string& subject, float score);
     
     /**
-     * @brief 保存数据到Excel格式文件（带表头）
-     * @param filename 文件名
-     * @return bool 保存成功返回true，失败返回false
-     * 
-     * 按照学号从小到大排序后保存为CSV格式（Excel兼容）。
+     * @brief 获取学生成绩信息
+     * @param student_id 学生学号
+     * @return std::string 格式化的成绩信息字符串
      */
-    bool save_to_excel_file(const std::string& filename);
+    std::string get_student_scores_info(const std::string& student_id);
 
 private:
     std::list<Student> students_;  ///< 学生列表（使用STL链表存储）

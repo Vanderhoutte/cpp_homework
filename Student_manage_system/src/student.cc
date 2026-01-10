@@ -26,6 +26,9 @@ void Student::show_info() const {
         for (const auto& [subject, score] : scores_) {
             std::cout << "  " << subject << ": " << score << "\n";
         }
+        std::cout << "平均分: " << get_average_score() << "\n";
+    } else {
+        std::cout << "成绩: 暂无成绩记录\n";
     }
 }
 

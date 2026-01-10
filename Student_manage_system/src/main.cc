@@ -44,8 +44,10 @@ void show_menu() {
     std::cout << "4. 查询学生（按学号）" << std::endl;
     std::cout << "5. 查询学生（按姓名）" << std::endl;
     std::cout << "6. 显示所有学生" << std::endl;
-    std::cout << "7. 保存数据到Excel文件" << std::endl;
-    std::cout << "8. 加载数据" << std::endl;
+    std::cout << "7. 设置学生成绩" << std::endl;
+    std::cout << "8. 查询学生成绩" << std::endl;
+    std::cout << "9. 保存数据到Excel文件" << std::endl;
+    std::cout << "10. 加载数据" << std::endl;
     std::cout << "0. 退出系统" << std::endl;
     std::cout << "请选择操作: ";
 }
@@ -202,7 +204,51 @@ int main() {
                 }
                 break;
                 
-            case 7:
+            case 7: {
+                std::string id, subject;
+                float score;
+                std::cout << "请输入学生学号: ";
+                std::getline(std::cin, id);
+                std::cout << "请输入科目名称: ";
+                std::getline(std::cin, subject);
+                std::cout << "请输入成绩(0-100): ";
+                
+                if (!(std::cin >> score)) {
+                    std::cin.clear();
+                    std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+                    std::cout << "[失败] 成绩输入无效，请输入数字！" << std::endl;
+                    break;
+                }
+                std::cin.ignore();
+                
+                try {
+                    if (system.set_student_score(id, subject, score)) {
+                        std::cout << "[成功] 成绩设置成功！" << std::endl;
+                    } else {
+                        std::cout << "[失败] 成绩设置失败！" << std::endl;
+                    }
+                } catch (const std::exception& e) {
+                    std::cout << "[失败] 设置成绩时发生错误：" << e.what() << std::endl;
+                }
+                break;
+            }
+                
+            case 8: {
+                std::string id;
+                std::cout << "请输入学生学号: ";
+                std::getline(std::cin, id);
+                
+                try {
+                    std::string scores_info = system.get_student_scores_info(id);
+                    std::cout << "=== 学生成绩信息 ===" << std::endl;
+                    std::cout << scores_info << std::endl;
+                } catch (const std::exception& e) {
+                    std::cout << "[失败] 查询成绩时发生错误：" << e.what() << std::endl;
+                }
+                break;
+            }
+                
+            case 9:
                 try {
                     if (system.save_to_excel_file("students.csv")) {
                         std::cout << "[成功] 保存成功！数据已按学号排序并保存为Excel格式。" << std::endl;
@@ -214,7 +260,7 @@ int main() {
                 }
                 break;
                 
-            case 8:
+            case 10:
                 try {
                     if (system.load_from_file("students.csv")) {
                         std::cout << "[成功] 加载成功！" << std::endl;

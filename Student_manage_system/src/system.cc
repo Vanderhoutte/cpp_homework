@@ -110,11 +110,30 @@ bool StudentManagementSystem::save_to_file(const std::string& filename) {
         return false;
     }
     
+    // 添加表头（包含成绩字段标识）
+    file << "学号,姓名,性别,班级,电话,邮箱,成绩信息\n";
+    
     for (const auto& student : students_) {
         file << student.get_id() << ","
              << student.get_name() << ","
              << student.get_gender() << ","
-             << student.get_class_id() << "\n";
+             << student.get_class_id() << ","
+             << student.get_phone() << ","
+             << student.get_email() << ",";
+        
+        // 保存成绩信息（格式：科目1:成绩1;科目2:成绩2;...）
+        const auto& scores = student.get_scores();
+        if (!scores.empty()) {
+            bool first = true;
+            for (const auto& [subject, score] : scores) {
+                if (!first) file << ";";
+                file << subject << ":" << score;
+                first = false;
+            }
+        } else {
+            file << "无成绩";
+        }
+        file << "\n";
     }
     
     file.close();
@@ -152,26 +171,41 @@ bool StudentManagementSystem::load_from_file(const std::string& filename) {
         if (line.empty()) continue;
         
         std::istringstream iss(line);
-        std::string id, name, gender, class_id, phone, email;
+        std::string id, name, gender, class_id, phone, email, scores_str;
         
-        // 尝试解析CSV行（支持不同格式）
+        // 解析CSV行（包含成绩信息）
         if (std::getline(iss, id, ',') &&
             std::getline(iss, name, ',') &&
             std::getline(iss, gender, ',') &&
-            std::getline(iss, class_id)) {
-            
-            // 尝试解析可选字段
-            if (std::getline(iss, phone, ',') && std::getline(iss, email)) {
-                // 有电话和邮箱字段
-            } else {
-                // 只有基本字段，重置可选字段
-                phone = "";
-                email = "";
-            }
+            std::getline(iss, class_id, ',') &&
+            std::getline(iss, phone, ',') &&
+            std::getline(iss, email, ',') &&
+            std::getline(iss, scores_str)) {
             
             try {
-                // 使用try-catch捕获验证异常
+                // 创建学生对象
                 Student student(id, name, gender, class_id, phone, email);
+                
+                // 解析成绩信息（如果存在）
+                if (scores_str != "无成绩" && !scores_str.empty()) {
+                    std::istringstream scores_stream(scores_str);
+                    std::string subject_score;
+                    
+                    while (std::getline(scores_stream, subject_score, ';')) {
+                        size_t colon_pos = subject_score.find(':');
+                        if (colon_pos != std::string::npos) {
+                            std::string subject = subject_score.substr(0, colon_pos);
+                            std::string score_str = subject_score.substr(colon_pos + 1);
+                            
+                            try {
+                                float score = std::stof(score_str);
+                                student.set_score(subject, score);
+                            } catch (const std::invalid_argument& e) {
+                                logger_.warn("跳过无效成绩：" + subject + "=" + score_str);
+                            }
+                        }
+                    }
+                }
                 
                 if (student.is_valid()) {
                     students_.push_back(student);
@@ -181,7 +215,6 @@ bool StudentManagementSystem::load_from_file(const std::string& filename) {
                     error_count++;
                 }
             } catch (const std::invalid_argument& e) {
-                // 捕获验证异常，记录警告但继续加载其他数据
                 logger_.warn("加载学生数据时跳过验证失败的数据：" + id + " - " + name + " (" + e.what() + ")");
                 error_count++;
             }
@@ -200,7 +233,49 @@ bool StudentManagementSystem::load_from_file(const std::string& filename) {
         logger_.info("从文件加载了 " + std::to_string(count) + " 个学生数据：" + filename);
     }
     
-    return count > 0;  // 只要成功加载了至少一个学生就返回true
+    return count > 0;
+}
+
+bool StudentManagementSystem::save_to_excel_file(const std::string& filename) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        logger_.error("无法打开文件进行保存：" + filename);
+        return false;
+    }
+    
+    // 按学号排序
+    sort_students_by_id();
+    
+    // 添加Excel表头（包含成绩信息）
+    file << "学号,姓名,性别,班级,电话,邮箱,成绩信息\n";
+    
+    // 保存数据（包含成绩信息）
+    for (const auto& student : students_) {
+        file << student.get_id() << ","
+             << student.get_name() << ","
+             << student.get_gender() << ","
+             << student.get_class_id() << ","
+             << student.get_phone() << ","
+             << student.get_email() << ",";
+        
+        // 保存成绩信息
+        const auto& scores = student.get_scores();
+        if (!scores.empty()) {
+            bool first = true;
+            for (const auto& [subject, score] : scores) {
+                if (!first) file << ";";
+                file << subject << ":" << score;
+                first = false;
+            }
+        } else {
+            file << "无成绩";
+        }
+        file << "\n";
+    }
+    
+    file.close();
+    logger_.info("成功保存Excel格式数据到文件：" + filename);
+    return true;
 }
 
 void StudentManagementSystem::show_all_students() const {
@@ -287,30 +362,51 @@ void StudentManagementSystem::sort_students_by_id() {
     logger_.info("按学号排序完成");
 }
 
-bool StudentManagementSystem::save_to_excel_file(const std::string& filename) {
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        logger_.error("无法打开文件进行保存：" + filename);
+bool StudentManagementSystem::set_student_score(const std::string& student_id, const std::string& subject, float score) {
+    auto it = std::find_if(students_.begin(), students_.end(),
+        [&student_id](const Student& student) {
+            return student.get_id() == student_id;
+        });
+    
+    if (it == students_.end()) {
+        logger_.warn("设置成绩失败：学号 " + student_id + " 不存在");
         return false;
     }
     
-    // 添加Excel表头
-    file << "学号,姓名,性别,班级,电话,邮箱\n";
+    try {
+        it->set_score(subject, score);
+        logger_.info("成功设置学生成绩：" + student_id + " - " + subject + " = " + std::to_string(score));
+        return true;
+    } catch (const std::invalid_argument& e) {
+        logger_.warn("设置成绩失败：" + student_id + " - " + subject + " (" + e.what() + ")");
+        return false;
+    }
+}
+
+std::string StudentManagementSystem::get_student_scores_info(const std::string& student_id) {
+    auto it = std::find_if(students_.begin(), students_.end(),
+        [&student_id](const Student& student) {
+            return student.get_id() == student_id;
+        });
     
-    // 按学号排序
-    sort_students_by_id();
-    
-    // 保存数据
-    for (const auto& student : students_) {
-        file << student.get_id() << ","
-             << student.get_name() << ","
-             << student.get_gender() << ","
-             << student.get_class_id() << ","
-             << (student.get_phone().empty() ? "未设置" : student.get_phone()) << ","
-             << (student.get_email().empty() ? "未设置" : student.get_email()) << "\n";
+    if (it == students_.end()) {
+        return "学生不存在";
     }
     
-    file.close();
-    logger_.info("成功保存Excel格式数据到文件：" + filename);
-    return true;
+    std::stringstream ss;
+    ss << "学号: " << it->get_id() << "\n";
+    ss << "姓名: " << it->get_name() << "\n";
+    
+    const auto& scores = it->get_scores();
+    if (scores.empty()) {
+        ss << "该学生暂无成绩记录";
+    } else {
+        ss << "成绩列表:\n";
+        for (const auto& [subject, score] : scores) {
+            ss << "  " << subject << ": " << score << "\n";
+        }
+        ss << "平均分: " << it->get_average_score();
+    }
+    
+    return ss.str();
 }
