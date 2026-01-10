@@ -132,30 +132,75 @@ bool StudentManagementSystem::load_from_file(const std::string& filename) {
     students_.clear();
     std::string line;
     int count = 0;
+    int error_count = 0;
+    
+    // 跳过Excel表头（如果存在）
+    if (std::getline(file, line)) {
+        // 检查是否是表头（包含"学号"等字段）
+        if (line.find("学号") != std::string::npos) {
+            // 这是表头，跳过
+            logger_.info("检测到Excel表头，已跳过");
+        } else {
+            // 不是表头，重新处理这一行
+            file.seekg(0);
+        }
+    } else {
+        file.seekg(0);
+    }
     
     while (std::getline(file, line)) {
         if (line.empty()) continue;
         
         std::istringstream iss(line);
-        std::string id, name, gender, class_id;
+        std::string id, name, gender, class_id, phone, email;
         
+        // 尝试解析CSV行（支持不同格式）
         if (std::getline(iss, id, ',') &&
             std::getline(iss, name, ',') &&
             std::getline(iss, gender, ',') &&
             std::getline(iss, class_id)) {
             
-            Student student(id, name, gender, class_id);
-            
-            if (student.is_valid()) {
-                students_.push_back(student);
-                count++;
+            // 尝试解析可选字段
+            if (std::getline(iss, phone, ',') && std::getline(iss, email)) {
+                // 有电话和邮箱字段
+            } else {
+                // 只有基本字段，重置可选字段
+                phone = "";
+                email = "";
             }
+            
+            try {
+                // 使用try-catch捕获验证异常
+                Student student(id, name, gender, class_id, phone, email);
+                
+                if (student.is_valid()) {
+                    students_.push_back(student);
+                    count++;
+                } else {
+                    logger_.warn("跳过无效学生数据：" + id + " - " + name);
+                    error_count++;
+                }
+            } catch (const std::invalid_argument& e) {
+                // 捕获验证异常，记录警告但继续加载其他数据
+                logger_.warn("加载学生数据时跳过验证失败的数据：" + id + " - " + name + " (" + e.what() + ")");
+                error_count++;
+            }
+        } else {
+            logger_.warn("跳过格式错误的行：" + line);
+            error_count++;
         }
     }
     
     file.close();
-    logger_.info("从文件加载了 " + std::to_string(count) + " 个学生数据：" + filename);
-    return true;
+    
+    if (error_count > 0) {
+        logger_.warn("从文件加载数据完成，成功加载 " + std::to_string(count) + 
+                     " 个学生，跳过 " + std::to_string(error_count) + " 个无效数据：" + filename);
+    } else {
+        logger_.info("从文件加载了 " + std::to_string(count) + " 个学生数据：" + filename);
+    }
+    
+    return count > 0;  // 只要成功加载了至少一个学生就返回true
 }
 
 void StudentManagementSystem::show_all_students() const {

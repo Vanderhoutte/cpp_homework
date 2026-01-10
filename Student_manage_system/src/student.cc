@@ -89,8 +89,11 @@ void Student::set_email(const std::string& email) {
 
 void Student::validate_id(const std::string& id) const {
     if (id.empty()) throw std::invalid_argument("学号不能为空");
-    if (!std::regex_match(id, std::regex("^\\d{10}$"))) {
-        throw std::invalid_argument("学号必须为10位数字");
+    if (!std::regex_match(id, std::regex("^\\d+$"))) {
+        throw std::invalid_argument("学号必须为纯数字");
+    }
+    if (id.length() < 3 || id.length() > 20) {
+        throw std::invalid_argument("学号长度必须在3-20位之间");
     }
 }
 
