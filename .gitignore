@@ -1,3 +1,5 @@
 ./build
 *.csv
 ./Student_manage_system/build
+*.o
+*.exe
