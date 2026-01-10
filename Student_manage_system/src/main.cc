@@ -76,7 +76,16 @@ int main() {
     while (true) {
         show_menu();
         int choice;
-        std::cin >> choice;
+        
+        // 改进的输入验证：处理非数字输入和输入错误
+        if (!(std::cin >> choice)) {
+            // 清除错误状态
+            std::cin.clear();
+            // 忽略错误的输入行
+            std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+            std::cout << "[警告] 输入无效，请输入数字选项！" << std::endl;
+            continue;  // 重新显示菜单
+        }
         std::cin.ignore();
         
         switch (choice) {
