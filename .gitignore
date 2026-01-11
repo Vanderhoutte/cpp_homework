@@ -3,3 +3,4 @@
 ./Student_manage_system/build
 *.o
 *.exe
+*.docx
